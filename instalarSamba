@@ -1,0 +1,84 @@
+-sudo apt install -y realmd packagekit samba ntp krb5-config krb5-user krb5-kdc winbind libpam-winbind libnss-winbind smbclient cifs-utils
+----ahora le damos a intro para que siga. Sino tendríamos que poner lo siguiente a mano, y se debe
+coger solo por defecto de los ficheros------
+#reino: -echo "ruben.com"
+#nombre servidores de kerberos para el reino: -echo "serverruben.ruben.com"
+#nombre administrativo de kerberos para el reino: -echo "serverruben.ruben.com"
+----puede haber algo más, pero si le das a esc se sale y sigue----
+
+
+#INSTALAR PROGRAMAS NECESARIOS:
+apt install -y realmd packagekit samba krb5-config krb5-user krb5-kdc winbind libpam-winbind libnss-winbind smbclient cifs-utils
+#PONER IP ESTATICA:
+echo -e "source /etc/network/interfaces.d/*"> /etc/network/interfaces
+echo -e "auto lo">> /etc/network/interfaces
+echo -e "iface lo inet loopback">> /etc/network/interfaces
+echo -e "allow-hotplug enp0s3">> /etc/network/interfaces
+echo -e "iface enp0s3 inet static">> /etc/network/interfaces
+echo -e "\t address 192.168.1.20">> /etc/network/interfaces
+echo -e "\t netmask 255.255.255.0">> /etc/network/interfaces
+echo -e "\t gateway 192.168.1.1">> /etc/network/interfaces
+echo -e "\t dns-nameservers 192.168.1.13">> /etc/network/interfaces
+#APLICAR NUEVA CONFIGURACIÓN DE RED:
+systemctl restart networking
+#CAMBIAR NOMBRE MÁQUINA EN LA RED:
+hostnamectl set-hostname clientead
+#SALIR Y ENTRAR DE LA SESIÓN PARA QUE SE APLIQUE EL NUEVO NOMBRE:
+#CAMBIAR CONFIGURACIÓN EN /ETC/HOSTS:
+echo -e "127.0.0.1 localhost" > /etc/hosts
+echo -e "192.168.1.20 clientead.ruben.com clientead" >> /etc/hosts
+echo -e "192.168.1.13 serverruben.ruben.com ruben.com" >> /etc/hosts
+#Comprobamos conexión haciendo ping a ruben.com
+
+#CONFIGURAMOS FICHERO /etc/resolv.conf:
+echo -e "domain ruben.com" > /etc/resolv.conf
+echo -e "search ruben.com" >> /etc/resolv.conf
+echo -e "nameserver 192.168.1.13" >> /etc/resolv.conf
+
+#CONFIGURAMOS SAMBA(/etc/samba/smb.conf):
+echo -e "netbios name = CLIENTEAD" > /etc/samba/smb.conf
+echo -e "server role = MEMBER SERVER" >> /etc/samba/smb.conf
+echo -e "workgroup = RUBEN" >> /etc/samba/smb.conf
+echo -e "realm = RUBEN.COM" >> /etc/samba/smb.conf
+echo -e "security = ADS" >> /etc/samba/smb.conf
+echo -e "winbind refresh tickets = yes" >> /etc/samba/smb.conf
+echo -e "winbind nss info = template" >> /etc/samba/smb.conf
+echo -e "winbind expand groups = 2" >> /etc/samba/smb.conf
+echo -e "winbind nested groups = yes" >> /etc/samba/smb.conf
+echo -e "winbind enum groups = yes" >> /etc/samba/smb.conf
+echo -e "winbind enum users = yes" >> /etc/samba/smb.conf
+echo -e "winbind use default domain = yes" >> /etc/samba/smb.conf
+echo -e "template shell = /bin/bash" >> /etc/samba/smb.conf
+echo -e "template homedir = /home/%U" >> /etc/samba/smb.conf
+echo -e "idmap config * : backend = tdb" >> /etc/samba/smb.conf
+echo -e "idmap config * : range = 10000-20000" >> /etc/samba/smb.conf
+echo -e "idmap config RUBEN : backend = rid" >> /etc/samba/smb.conf
+echo -e "idmap config RUBEN : range = 30000-40000" >> /etc/samba/smb.conf
+
+#CONFIGURACIÓN KERBEROS (/etc/krb5.conf):
+echo -e "[libdefaults]" > /etc/krb5.conf
+echo -e "\tdefault_realm = RUBEN.COM" >> /etc/krb5.conf
+echo -e "\tdns_lookup_realm = false" >> /etc/krb5.conf
+echo -e "\tdns_lookup_kdc = true" >> /etc/krb5.conf
+echo -e "\tforwardable = true" >> /etc/krb5.conf
+echo -e "[realms]" >> /etc/krb5.conf
+echo -e "\tRUBEN.COM = {" >> /etc/krb5.conf
+echo -e "\t\tkdc = serverruben.ruben.com" >> /etc/krb5.conf
+echo -e "\t\tadmin_server = serverruben.ruben.com" >> /etc/krb5.conf
+echo -e "\t}" >> /etc/krb5.conf
+echo -e "[domain_realm]" >> /etc/krb5.conf
+echo -e "\t.ruben.com = RUBEN.COM" >> /etc/krb5.conf
+echo -e "\truben.com = RUBEN.COM" >> /etc/krb5.conf
+
+#OBTENEMOS UN TICKET DE TIEMPO (ntp):
+#Y hacemos que obtenga la contraseña del
+#administrador automáticamente:
+(kinit administrador <<EOL
+Dpto1!
+EOL
+)
+
+#CONFIGURAMOS PAM con /sbin/pam-auth-update:
+#Esto lo hago a mano porque no se hacerlo aquí
+
+
